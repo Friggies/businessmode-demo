@@ -18,7 +18,7 @@
     "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@businessmode/sdk": "file:vendor/businessmode-sdk-0.1.0-preview.0.tgz",
+    "@businessmode/sdk": "file:vendor/businessmode-sdk-0.1.0-preview.1.tgz",
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",

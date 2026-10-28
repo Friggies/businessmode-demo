@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { sampleTasks, type DemoState } from "../lib/types";
+import { loadTasks, saveTasks, TASK_STORAGE_KEY } from "../lib/browser-tasks";
+import { sampleTasks, type DemoState, type Task } from "../lib/types";
 
-const initial: DemoState = { configured: false, session: false, expiresAt: null, hasAccess: false, tasks: sampleTasks, publicCode: "" };
+const initial: DemoState & { tasks: Task[] } = { configured: false, session: false, sessionId: null, expiresAt: null, hasAccess: false, tasks: sampleTasks, publicCode: "" };
 
 function LockIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/><path d="M12 14v3"/></svg>;
@@ -29,7 +30,9 @@ export function TodoDemo() {
       .then(async response => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "Could not load the demo.");
-        setState(body);
+        let tasks = sampleTasks;
+        try { if (body.sessionId) tasks = loadTasks(window.localStorage, body.sessionId); } catch { /* Memory-only fallback. */ }
+        setState({ ...body, tasks });
       })
       .catch(error => { if (error.name !== "AbortError") setProblem(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -41,17 +44,32 @@ export function TodoDemo() {
     inFlight.current = true;
     setPending(action); setProblem(""); setMessage("");
     try {
-      const response = await fetch(`/api/demo/${path}`, {
-        method, headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-        body: body === undefined ? undefined : JSON.stringify(body),
+      const taskAction = path.startsWith("tasks");
+      if (action === "add" && state.tasks.length >= 30) throw new Error("This demo supports up to 30 tasks.");
+      const response = await fetch(`/api/demo/${taskAction ? "authorize" : path}`, {
+        method: taskAction ? "POST" : method, headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+        body: taskAction || body === undefined ? undefined : JSON.stringify(body),
       });
       const result = await response.json();
       if (!response.ok) {
-        if (response.status === 401) setState(previous => ({ ...previous, session: false, hasAccess: false, expiresAt: null, tasks: sampleTasks }));
+        if (response.status === 401) setState(previous => ({ ...previous, session: false, sessionId: null, hasAccess: false, expiresAt: null, tasks: sampleTasks }));
         if (response.status === 403 || response.status === 503) setState(previous => ({ ...previous, hasAccess: false }));
         throw new Error(result.error || "Something went wrong. Please try again.");
       }
-      setState(previous => ({ ...previous, ...result }));
+      let tasks = state.tasks;
+      if (taskAction) {
+        const id = path.split("/")[1];
+        if (method === "POST") tasks = [...tasks, { id: crypto.randomUUID(), title: title.trim(), done: false }];
+        if (method === "PATCH") tasks = tasks.map(task => task.id === id ? { ...task, done: (body as { done: boolean }).done } : task);
+        if (method === "DELETE") tasks = tasks.filter(task => task.id !== id);
+      }
+      if (action === "start" || action === "reset" || result.session === false) tasks = sampleTasks;
+      const next = { ...state, ...result, tasks };
+      setState(next);
+      try {
+        if (action === "reset") window.localStorage.removeItem(TASK_STORAGE_KEY);
+        else if (next.sessionId) saveTasks(window.localStorage, next.sessionId, tasks);
+      } catch { setProblem("Browser storage is unavailable. Your tasks will last until you reload this page."); }
       if (action === "redeem") setMessage(result.hasAccess ? "Access granted. Make this list your own." : "Code redeemed, but it does not grant task editing.");
       if (action === "reset") { setCode(""); setTitle(""); setMessage("Demo reset. Start a fresh session whenever you like."); }
       return true;
@@ -85,7 +103,7 @@ export function TodoDemo() {
           </li>)}
         </ul>
         {state.tasks.length === 0 ? <p className="empty-list">A clear list. Add something you’d like to do.</p> : null}
-        <p className="list-note"><LockIcon />{state.hasAccess ? "Access granted. Every task change is checked on the server." : "Redeem a code to add, complete, and delete tasks."}</p>
+        <p className="list-note"><LockIcon />{state.hasAccess ? "Access granted. Tasks stay in this browser." : "Redeem a code to add, complete, and delete tasks."}</p>
       </div>
     </section>
 

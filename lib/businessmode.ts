@@ -1,6 +1,6 @@
 import { createMachineClient, getRequestId } from "@businessmode/sdk";
 import type { Config } from "./config";
-import type { Assignment, Store } from "./store";
+import type { Assignment } from "./session";
 
 export class DemoError extends Error {
   constructor(public status: number, message: string, public requestId?: string | null) { super(message); }
@@ -51,14 +51,6 @@ export function businessmode(config: Config) {
 
 export type AccessService = ReturnType<typeof businessmode>;
 export function externalUserId(sessionId: string) { return `todo_demo:${sessionId}`; }
-
-export async function cleanup(store: Store, access: AccessService) {
-  for (const value of store.expiredAssignments()) {
-    try { await access.release(value); store.forgetAssignment(value); }
-    catch { /* Retain the handle for the next cleanup attempt; never log credentials or codes. */ }
-  }
-  store.prune();
-}
 
 function serviceError(response: Response) {
   return new DemoError(503, "BusinessMode is temporarily unavailable. Please try again.", getRequestId(response));

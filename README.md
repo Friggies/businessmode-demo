@@ -1,12 +1,32 @@
 # BusinessMode · Next.js Todo demo
 
-A small, public reference app showing how to integrate BusinessMode from your
-backend. Visitors start a temporary guest session, redeem an access code, and
-unlock a Todo list. Every task write checks access on the server.
+A public, database-free reference app: start a guest session, redeem a real
+BusinessMode access code, and edit a small to-do list stored in your browser.
+The server uses the actual packaged `@businessmode/sdk`. There is no simulated
+access mode in the deployed app.
 
-The app is independent of the private BusinessMode monorepo. It uses the actual
-packaged `@businessmode/sdk`, not workspace imports. The intended hosted address
-is `demo.businessmode.io`; deployment is separate from publishing this source.
+## Architecture
+
+| Part | Responsibility |
+| --- | --- |
+| Browser | Renders the app and keeps up to 30 tasks in `localStorage` |
+| Next.js routes on Netlify | Issues signed guest cookies; calls BusinessMode with a private machine key |
+| Existing BusinessMode API | Redeems codes and evaluates entitlements, seats and license windows |
+
+No SQLite, Supabase project, auth provider, persistent disk or separately
+managed server is required. Netlify runs the small Next.js server routes.
+
+Before each task change the UI calls `/api/demo/authorize`, which checks
+`todo:write` through BusinessMode. It then updates its own local list. **Local
+tasks are not a protected server resource:** visitors can edit browser storage
+or bypass the UI. This demonstrates the SDK and real access decisions, not
+secure storage of shared application data. In a real product, perform the
+protected operation on the server immediately after checking access.
+
+Tasks do not sync across devices. Clearing site data removes them. If storage
+is disabled, editing still works in memory with a notice that reload loses
+changes. Multiple tabs may overwrite each other's edits; this is not a
+collaborative task app.
 
 ## Run locally
 
@@ -17,51 +37,71 @@ git clone https://github.com/Friggies/businessmode-demo.git
 cd businessmode-demo
 npm ci
 cp .env.example .env.local
-# Fill in the server environment described below.
+# Fill the server environment below, then:
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without configuration the UI renders an honest
-setup state; it does not simulate successful access or redemption.
+Open `http://localhost:3000`. Without configuration, the page shows a setup
+notice and keeps redemption disabled; it does not pretend to grant access.
 
-## Prepare a dedicated BusinessMode project
+## Configure BusinessMode
 
-1. Create a Project used only for this demo, and an entitlement with key
-   `todo:write`.
-2. Create a demo Organization and an active License that includes `todo:write`.
-   Give the License sufficient seats for the expected visitors. The app bounds
-   retained guest sessions to 250, including those waiting for cleanup.
-3. Create an Access Code for that License with a readable promo value such as
-   `TRY_BUSINESSMODE`. Make it reusable by multiple visitors and choose an
-   expiry/redemption limit appropriate to the demo. Released seats do not undo
-   historical redemptions or refill a code's redemption allowance.
-4. Create a machine API key for this dedicated Project. The server needs access
-   checks, Access Code redemption, and assignment release. Configure the key only
-   on the server. Do not reuse a customer Project or key.
+Use a **dedicated demo Project**, separate from customer data:
 
-The platform API must support promo redemption before visitors use the public
-code. Keep staging and production credentials, resources and URLs separate.
+1. Create the `todo:write` entitlement, a demo Organization, and an active
+   License granting that entitlement. Set a finite seat allocation.
+2. Create a reusable Access Code with a readable promo value such as
+   `TRY_BUSINESSMODE`. Choose its expiry and redemption allowance deliberately;
+   this code is public, and each new guest may consume an allowance.
+3. Create a machine API key for that Project. The demo needs access checks,
+   code redemption and assignment release.
+4. Set the variables below. Keep staging and production URLs/resources separate.
 
 | Variable | Purpose |
 | --- | --- |
-| `BUSINESSMODE_API_URL` | API URL including `/v1`; e.g. `https://staging-api.businessmode.io/v1` |
+| `BUSINESSMODE_API_URL` | API URL ending in `/v1`; staging example is in `.env.example` |
 | `BUSINESSMODE_API_KEY` | Dedicated Project's machine API key; server secret |
-| `BUSINESSMODE_ENTITLEMENT_KEY` | Entitlement checked on writes; defaults to `todo:write` |
-| `DEMO_ORIGIN` | Exact browser origin, e.g. `http://localhost:3000` or `https://demo.businessmode.io` |
-| `DEMO_DATABASE_PATH` | SQLite file; defaults to `./data/demo.sqlite` |
-| `DEMO_PUBLIC_ACCESS_CODE` | Optional, intentionally public value for “Use demo code” |
+| `BUSINESSMODE_ENTITLEMENT_KEY` | Defaults to `todo:write` |
+| `DEMO_ORIGIN` | Exact public origin, initially `https://businessmode-demo.netlify.app` |
+| `DEMO_SESSION_SECRET` | Server secret: 32 random bytes encoded as 64 hex characters |
+| `DEMO_PUBLIC_ACCESS_CODE` | Optional public value for the “Use demo code” button |
 
-Never prefix the machine key with `NEXT_PUBLIC_`. No secret is required during
-the build. HTTPS is required outside localhost. Changing runtime configuration
-requires restarting the app.
+Generate a signing secret locally:
 
-## Follow the integration
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
 
-- [`lib/businessmode.ts`](lib/businessmode.ts): the three actual SDK calls.
-- [`lib/handler.ts`](lib/handler.ts): derive visitor identity, redeem, check
-  access before writing tasks, and handle errors.
-- [`lib/store.ts`](lib/store.ts): this app's guest sessions and task storage.
-- [`app/todo-demo.tsx`](app/todo-demo.tsx): the client UI; it has no machine key.
+Use the same secret across the site's serverless instances. Rotating it ends
+existing guest sessions and loses their cookie-held cleanup handles. Never
+prefix either secret with `NEXT_PUBLIC_`, commit `.env.local`, or reuse a
+production customer key. HTTPS is required outside localhost.
+
+## Deploy on Netlify
+
+Import this repository into a Netlify project. `netlify.toml` defines
+`npm run build`, `.next`, and Node 24. Netlify installs its Next.js adapter
+without a pinned adapter dependency. Do not add a static SPA catch-all.
+
+Set the variables above in Netlify, scoped to **Builds and Functions** for the
+production deploy context. Keep the machine key and signing secret marked
+secret. The app can build without credentials, but real integration requires
+them at runtime. Redeploy after any environment-variable change. `.netlify/`
+is ignored so local linking metadata cannot be committed.
+
+First verify the `netlify.app` URL. To use `demo.businessmode.io`, add the custom
+domain in Netlify, configure its instructed DNS records and HTTPS, change
+`DEMO_ORIGIN` to `https://demo.businessmode.io`, and redeploy. Only the configured
+origin can send mutation requests; a preview URL needs its own environment
+configuration and dedicated test credentials.
+
+## Follow the code
+
+- [`lib/businessmode.ts`](lib/businessmode.ts): SDK redemption, access and release calls.
+- [`lib/session.ts`](lib/session.ts): server-issued guest identity and HMAC-signed cookie.
+- [`lib/handler.ts`](lib/handler.ts): origin checks, code validation, access decisions and reset.
+- [`lib/browser-tasks.ts`](lib/browser-tasks.ts): versioned, validated browser storage.
+- [`app/todo-demo.tsx`](app/todo-demo.tsx): UI and local task edits; no machine key.
 
 ```ts
 import { createMachineClient } from "@businessmode/sdk";
@@ -71,63 +111,69 @@ const businessmode = createMachineClient({
   apiKey: process.env.BUSINESSMODE_API_KEY!,
 });
 
-// Derive this ID from YOUR authenticated server session, never a request body.
+// Derive from YOUR authenticated server session, never a client-supplied ID.
 const externalUserId = "your-app-user-id";
-
 const redemption = await businessmode.POST("/access-codes/redeem", {
   body: { code: submittedCode, externalUserId },
 });
-if (redemption.error !== undefined) {
-  // Handle the HTTP error. Network failures throw instead.
-}
+if (redemption.error !== undefined) throw new Error("Redemption failed");
 
 const access = await businessmode.GET("/access", {
   params: { query: { externalUserId, entitlementKey: "todo:write" } },
   cache: "no-store",
 });
 if (access.error !== undefined || !access.data?.hasAccess) {
-  // Do not perform the protected operation.
+  throw new Error("Access denied");
 }
+// Perform your protected server operation here.
 ```
 
-BusinessMode handles entitlements, seats and code rules. Your application owns
-identity and task data. This demo supplies a random guest ID through a one-hour,
-HttpOnly, SameSite cookie; the database stores only a hash of its 256-bit token.
-For a real product, replace this guest adapter with your existing authentication
-system. No BusinessMode account is created for a visitor.
+HTTP failures return `error`; transport failures throw. Neither grants access.
+Promo strings retain exact case and whitespace. No automatic mutation retry is
+performed: after an uncertain redemption, retry the same code in the same guest
+session. BusinessMode makes that pair domain-idempotent.
 
-Code strings retain their exact case and whitespace. The example code is a
-published demo credential, not a secret. API errors do not become successful
-access decisions. Mutations are not retried automatically; after an uncertain
-redemption, retry the same code in the same guest session. Redemption is
-domain-idempotent for that code/user pair. Resetting creates a fresh identity
-on the next start, since replaying an old redemption is not a new assignment.
+## Session lifetime and operating the public demo
 
-Guest expiry is stored as an absolute instant and checked on the server. The UI
-reacts to server expiry responses instead of making access decisions from the
-browser's clock. BusinessMode remains authoritative for License and Access Code
-time windows.
+Guest access lasts one hour, checked against server time as an absolute instant.
+The browser clock does not decide expiry. BusinessMode remains authoritative
+for license and code windows. An HttpOnly, SameSite=Strict cookie (Secure on
+HTTPS) carries the signed guest ID and up to eight assignment cleanup handles.
+The cookie contains no machine key, task data or raw access code. It remains
+for seven days so returning visitors can release an expired guest's known
+assignments before starting another session.
+
+Reset releases known assignments before clearing the cookie and local tasks.
+If release fails, reset reports an error and retains the handles for retry.
+The next start gets a new guest ID: replaying an old redemption is not a new
+assignment. Signed cookies have no central revocation list; a copied old cookie
+can be replayed until its server expiry. Reset revokes known BusinessMode grants,
+but is not a production authentication/sign-out system.
+
+**Abandoned guests require occasional cleanup in BusinessMode.** There is no
+background database or durable cleanup queue. Closing the browser, deleting a
+cookie, losing a redemption response, or concurrent redemptions from multiple
+tabs can leave assignment handles unavailable. Review the dedicated License's
+`todo_demo:` assignments and release abandoned ones through BusinessMode.
+Expired app sessions do not automatically free seats. Releases do not replenish
+code redemption allowances or remove historical redemptions/external users.
+
+The stateless demo has no cross-instance application rate limiter. Keep finite
+seat/redemption allowances, review usage, and configure hosting-level traffic
+limits as appropriate before broad promotion. BusinessMode API errors and rate
+limits are surfaced to the visitor. Do not reuse this guest setup for paid or
+sensitive product access.
 
 ## SDK release status
 
-The dependency currently points to a reviewed archive of
-`@businessmode/sdk@0.1.0-preview.0` in `vendor/`. This lets anyone install the
-repository before the first npm publication. The archive contains compiled
-SDK files, types and its own license; no private workspace dependency is needed.
-See [third-party notices](THIRD_PARTY_NOTICES.md) for provenance and integrity.
+The dependency points to the reviewed `@businessmode/sdk@0.1.0-preview.0` archive
+in `vendor/`, so anyone can install this public repo without private workspace
+access. The package is not yet published to npm. See
+[third-party notices](THIRD_PARTY_NOTICES.md) for provenance and integrity.
+Once that exact version is public, install it from npm, commit the lockfile,
+and remove the archive. Initial support is server-side ESM on Node 24/26.
 
-After that exact preview is available publicly on npm:
-
-```sh
-npm install --save-exact @businessmode/sdk@0.1.0-preview.0
-```
-
-Commit both package files, remove the vendored archive and its `COPY vendor`
-Dockerfile line, and update these notices. Pin preview versions. The initial SDK
-support scope is server-side ESM on Node 24/26; this demo does not add another
-framework wrapper or browser SDK support promise.
-
-## Test
+## Verify
 
 ```sh
 npm run typecheck
@@ -137,58 +183,17 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The integration tests use the **real installed SDK** against a local test HTTP
-server. They exercise identity isolation, exact promo strings, redemption,
-write checks, revocation, unavailable API behavior, expiry and cleanup retries.
-Browser tests run the production Next.js build with a separate test API server.
-They do not prove live BusinessMode provisioning, DNS or deployment; those need
-the acceptance checks below. No mock-access mode exists in production code.
+Integration tests use the installed SDK against a local HTTP test server. They
+cover cross-instance sessions, signature tampering, exact codes, access denial,
+revocation, upstream failures, expiry, reset retries and browser-storage parsing.
+Playwright tests run the production Next.js build on desktop and mobile against
+a separate test API; this test service is never used in production.
 
-## Deploy to Coolify
-
-Use one container replica built with the root `Dockerfile`, port `3000`.
-Mount persistent storage at `/app/data`, writable by the container's `node`
-user (UID 1000). Set the environment variables above as runtime values and set
-`DEMO_ORIGIN=https://demo.businessmode.io`. Keep `.env.local` out of Git and
-container build context. Use `/api/demo/state` as an HTTP liveness check; it
-does not prove that a machine key can redeem or release assignments.
-
-Connect the hostname and TLS to the running Coolify application before adding
-its DNS record. The SQLite implementation assumes a single instance on
-persistent local storage. Multi-instance/serverless deployments need a shared
-session/task store; do not give each replica its own SQLite database.
-
-The demo limits new sessions globally (15/minute), session API requests
-(60/minute), redemption attempts (5/minute), task count (30/session), task length
-and JSON body size. Use host-level traffic limits for a public launch; these
-small in-app limits are not a DDoS service.
-
-### Lifecycle and operational limits
-
-Reset or one-hour expiry ends local access immediately. After API responses,
-the server attempts a bounded batch of expired assignment releases and prunes
-expired tasks. Failed releases remain in SQLite for retry on later requests.
-Cleanup is traffic-driven, so quiet periods can leave expired seats assigned
-until the next request. Retain the persistent volume across deployments.
-
-A redemption that reached BusinessMode but lost its response can leave an
-unknown assignment if the visitor abandons the session before retrying. A lost
-database volume has a similar effect. Inspect the dedicated demo License's
-assignments periodically and release abandoned `todo_demo:` users through
-BusinessMode. This demo deliberately does not add a distributed reconciliation
-service. Keep this bounded operational tradeoff in mind when allocating seats.
-Code redemption allowances and retained external users also need occasional
-review; releasing assignments does not delete historical users/redemptions.
-
-Before calling the hosted demo ready:
-
-- Confirm the new API version is deployed and accepts promo codes.
-- Use the live dedicated Project/key to start, redeem, add, complete and delete.
-- Use a second browser session to confirm task isolation.
-- Revoke access and confirm direct task writes are denied.
-- Reset a session and confirm the assignment is released; restart the container
-  and confirm the remaining session/task state persists.
-- Check HTTPS, hostname, runtime key secrecy and configured capacity.
+Before calling a hosted deployment ready, use the **live** dedicated Project to
+start, redeem, add/complete/delete, reload and reset. Verify the released
+assignment in BusinessMode, independent browser storage, denied access after
+revocation, HTTPS, environment secrecy and capacity. Passing CI alone does not
+prove live provisioning or deployment.
 
 ## License
 

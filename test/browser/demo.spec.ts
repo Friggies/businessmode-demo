@@ -25,9 +25,11 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   const task = page.getByRole("checkbox", { name: "Try the BusinessMode SDK" });
   await expect(task).toBeVisible();
-  // The controlled checkbox waits for the server's access check and write.
+  // The controlled checkbox waits for the server access check before saving locally.
   await task.click();
   await expect(task).toBeChecked();
+  const saved = await page.evaluate(() => localStorage.getItem("businessmode-demo:tasks:v1"));
+  expect(saved).toContain("Try the BusinessMode SDK");
   await page.reload();
   await expect(task).toBeChecked();
   await page.screenshot({ path: testInfo.outputPath("unlocked.png"), fullPage: true });
@@ -35,6 +37,7 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   await expect(task).toHaveCount(0);
   await page.getByRole("button", { name: "Reset demo" }).click();
   await expect(page.getByRole("button", { name: "Start guest session" })).toBeEnabled();
+  expect(await page.evaluate(() => localStorage.getItem("businessmode-demo:tasks:v1"))).toBeNull();
   await expect(page.getByLabel("New task")).toBeDisabled();
   await page.getByRole("link", { name: "How it works" }).click();
   await expect(page.getByRole("heading", { name: "See the integration" })).toBeInViewport();
@@ -53,4 +56,20 @@ test("an incorrect visitor clock does not expire the server session", async ({ p
   await page.getByLabel("New task").fill("Works with a different client clock");
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "Works with a different client clock" })).toBeVisible();
+});
+
+
+test("disabled browser storage falls back to an editable in-memory list", async ({ page }) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => { throw new DOMException("Storage disabled", "SecurityError"); };
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start guest session" }).click();
+  await page.getByRole("button", { name: "Use demo code" }).click();
+  await page.getByRole("button", { name: "Redeem code", exact: true }).click();
+  await expect(page.getByLabel("New task")).toBeEnabled();
+  await page.getByLabel("New task").fill("Works without persistence");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "Works without persistence" })).toBeVisible();
+  await expect(page.getByText("Browser storage is unavailable.", { exact: false })).toBeVisible();
 });

@@ -2,9 +2,9 @@ export type Task = { id: string; title: string; done: boolean };
 export type DemoState = {
   configured: boolean;
   session: boolean;
+  sessionId: string | null;
   expiresAt: string | null;
   hasAccess: boolean;
-  tasks: Task[];
   publicCode: string;
 };
 

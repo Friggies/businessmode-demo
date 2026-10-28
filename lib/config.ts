@@ -3,12 +3,13 @@ export type Config = {
   apiKey: string;
   entitlement: string;
   origin: string;
-  databasePath: string;
+  sessionSecret: string;
   publicCode: string;
 };
 
 export function readConfig(env: Readonly<Record<string, string | undefined>> = process.env): Config | null {
-  if (!env.BUSINESSMODE_API_URL || !env.BUSINESSMODE_API_KEY || !env.DEMO_ORIGIN) return null;
+  if (!env.BUSINESSMODE_API_URL || !env.BUSINESSMODE_API_KEY || !env.DEMO_ORIGIN || !env.DEMO_SESSION_SECRET) return null;
+  if (!/^[a-f0-9]{64}$/i.test(env.DEMO_SESSION_SECRET)) throw new Error("DEMO_SESSION_SECRET must be 32 random bytes encoded as hex.");
   const api = new URL(env.BUSINESSMODE_API_URL);
   const origin = new URL(env.DEMO_ORIGIN);
   for (const url of [api, origin]) {
@@ -25,7 +26,7 @@ export function readConfig(env: Readonly<Record<string, string | undefined>> = p
     apiUrl: api.href.replace(/\/$/, ""), apiKey: env.BUSINESSMODE_API_KEY,
     entitlement: env.BUSINESSMODE_ENTITLEMENT_KEY || "todo:write",
     origin: origin.origin,
-    databasePath: env.DEMO_DATABASE_PATH || "./data/demo.sqlite",
+    sessionSecret: env.DEMO_SESSION_SECRET,
     publicCode: env.DEMO_PUBLIC_ACCESS_CODE || "",
   };
 }

@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  output: "standalone",
   poweredByHeader: false,
-  serverExternalPackages: ["node:sqlite"],
   async headers() {
     return [{ source: "/(.*)", headers: [
       { key: "X-Content-Type-Options", value: "nosniff" },

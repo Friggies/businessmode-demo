@@ -7,3 +7,5 @@ data/
 test-results/
 playwright-report/
 npm-debug.log*
+
+.netlify/

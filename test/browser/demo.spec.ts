@@ -25,7 +25,8 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   const task = page.getByRole("checkbox", { name: "Try the BusinessMode SDK" });
   await expect(task).toBeVisible();
-  await task.check();
+  // The controlled checkbox waits for the server's access check and write.
+  await task.click();
   await expect(task).toBeChecked();
   await page.reload();
   await expect(task).toBeChecked();

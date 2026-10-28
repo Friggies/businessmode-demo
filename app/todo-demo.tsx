@@ -72,7 +72,7 @@ export function TodoDemo() {
   return <div className="demo-grid">
     <section className="todo-column" aria-labelledby="list-title">
       <div className="list-heading"><h1 id="list-title">Today’s list</h1><p>A simple app. Real access control.</p></div>
-      <div className="task-panel">
+      <div className="task-panel" aria-busy={Boolean(pending)}>
         <form className="task-composer" onSubmit={add}>
           <label className="sr-only" htmlFor="new-task">New task</label>
           <input id="new-task" placeholder="What needs doing?" maxLength={160} value={title} onChange={event => setTitle(event.target.value)} disabled={!editable} />
@@ -92,7 +92,7 @@ export function TodoDemo() {
     <aside className="access-panel" aria-labelledby="access-title">
       <h2 id="access-title">Unlock the demo</h2>
       <p className={`session-status ${state.session ? "ready" : ""}`}><span aria-hidden="true"/>{loading ? "Loading demo…" : state.session ? "Guest session ready" : "No account needed"}</p>
-      <p className="access-intro">Your app handles identity.<br/>BusinessMode handles access.</p>
+      <p className="access-intro">Your app handles identity.<br/>{" "}BusinessMode handles access.</p>
       {!loading && !state.configured ? <p className="setup-notice">This demo is not connected yet. Configure the server using the setup guide in the source repository.</p> : null}
       {!state.session ? <button className="button primary start-button" type="button" disabled={busy || !state.configured} onClick={() => void act("start", "POST", "session")}>{pending === "start" ? "Starting…" : "Start guest session"}</button> : null}
       <form className="redeem-form" onSubmit={redeem}>

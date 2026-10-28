@@ -108,9 +108,9 @@ export function TodoDemo() {
       {!state.session ? <button className="button primary start-button" type="button" disabled={busy || !state.configured} onClick={() => void act("start", "POST", "session")}>{pending === "start" ? "Starting…" : "Start guest session"}</button> : null}
       <form className="redeem-form" onSubmit={redeem}>
         <label htmlFor="access-code">Access code</label>
-        <input ref={codeInput} id="access-code" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" maxLength={512} placeholder={state.publicCode || "Enter an access code"} value={code} onChange={event => setCode(event.target.value)} disabled={busy || !state.session}/>
+        <input ref={codeInput} id="access-code" required autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" maxLength={512} placeholder={state.publicCode || "Enter an access code"} value={code} onChange={event => setCode(event.target.value)} disabled={busy || !state.session}/>
         {state.publicCode ? <button className="text-button use-code" type="button" disabled={busy || !state.session} onClick={() => { setCode(state.publicCode); codeInput.current?.focus(); }}>Use demo code</button> : null}
-        <button className="button primary" type="submit" disabled={busy || !state.session || code.length === 0}>{pending === "redeem" ? "Redeeming…" : "Redeem code"}</button>
+        <button className="button primary" type="submit" disabled={busy || !state.session}>{pending === "redeem" ? "Redeeming…" : "Redeem code"}</button>
       </form>
       <div className="feedback" aria-live="polite" aria-atomic="true">
         {problem ? <p className="error">{problem}</p> : message ? <p className="success">{message}</p> : null}

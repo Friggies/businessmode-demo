@@ -7,7 +7,7 @@ export type Config = {
   publicCode: string;
 };
 
-export function readConfig(env: NodeJS.ProcessEnv = process.env): Config | null {
+export function readConfig(env: Readonly<Record<string, string | undefined>> = process.env): Config | null {
   if (!env.BUSINESSMODE_API_URL || !env.BUSINESSMODE_API_KEY || !env.DEMO_ORIGIN) return null;
   const api = new URL(env.BUSINESSMODE_API_URL);
   const origin = new URL(env.DEMO_ORIGIN);

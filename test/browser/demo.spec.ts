@@ -6,20 +6,20 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Todo demo · BusinessMode");
   await expect(page.getByRole("heading", { name: "Today’s list" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start guest session" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Start demo" })).toBeEnabled();
   await expect(page.getByLabel("New task")).toBeDisabled();
-  await page.getByRole("button", { name: "Start guest session" }).click();
+  await page.getByRole("button", { name: "Start demo" }).click();
   await expect(page.getByText("Guest session ready")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Use demo code" })).toBeEnabled();
+  await expect(page.getByLabel("Access code", { exact: true })).toHaveValue("TRY_BUSINESSMODE");
   await page.screenshot({ path: testInfo.outputPath("locked.png"), fullPage: true });
 
   await page.getByLabel("Access code", { exact: true }).fill("invalid-code");
   await page.getByRole("button", { name: "Redeem code", exact: true }).click();
   await expect(page.getByText("This code could not grant access.", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Use demo code" }).click();
+  await page.getByLabel("Access code", { exact: true }).fill("TRY_BUSINESSMODE");
   await expect(page.getByLabel("Access code", { exact: true })).toHaveValue("TRY_BUSINESSMODE");
   await page.getByRole("button", { name: "Redeem code", exact: true }).click();
-  await expect(page.getByText("Access granted. Make this list your own.")).toBeVisible();
+  await expect(page.getByText("Access granted. Try adding or completing a task.")).toBeVisible();
   await expect(page.getByLabel("New task")).toBeEnabled();
   await page.getByLabel("New task").fill("Try the BusinessMode SDK");
   await page.getByRole("button", { name: "Add task", exact: true }).click();
@@ -36,11 +36,11 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Delete Try the BusinessMode SDK" }).click();
   await expect(task).toHaveCount(0);
   await page.getByRole("button", { name: "Reset demo" }).click();
-  await expect(page.getByRole("button", { name: "Start guest session" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Start demo" })).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem("businessmode-demo:tasks:v1"))).toBeNull();
   await expect(page.getByLabel("New task")).toBeDisabled();
-  await page.getByRole("link", { name: "How it works" }).click();
-  await expect(page.getByRole("heading", { name: "See the integration" })).toBeInViewport();
+  await page.getByText("For developers: how it works", { exact: true }).click();
+  await expect(page.getByRole("link", { name: "Read the integration guide ↗" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -48,9 +48,9 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
 test("an incorrect visitor clock does not expire the server session", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2040-01-01T00:00:00Z"));
   await page.goto("/");
-  await page.getByRole("button", { name: "Start guest session" }).click();
+  await page.getByRole("button", { name: "Start demo" }).click();
   await expect(page.getByText("Guest session ready")).toBeVisible();
-  await page.getByRole("button", { name: "Use demo code" }).click();
+  await page.getByLabel("Access code", { exact: true }).fill("TRY_BUSINESSMODE");
   await page.getByRole("button", { name: "Redeem code", exact: true }).click();
   await expect(page.getByLabel("New task")).toBeEnabled();
   await page.getByLabel("New task").fill("Works with a different client clock");
@@ -64,8 +64,8 @@ test("disabled browser storage falls back to an editable in-memory list", async 
     Storage.prototype.setItem = () => { throw new DOMException("Storage disabled", "SecurityError"); };
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start guest session" }).click();
-  await page.getByRole("button", { name: "Use demo code" }).click();
+  await page.getByRole("button", { name: "Start demo" }).click();
+  await page.getByLabel("Access code", { exact: true }).fill("TRY_BUSINESSMODE");
   await page.getByRole("button", { name: "Redeem code", exact: true }).click();
   await expect(page.getByLabel("New task")).toBeEnabled();
   await page.getByLabel("New task").fill("Works without persistence");

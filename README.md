@@ -5,6 +5,13 @@ BusinessMode access code, and edit a small to-do list stored in your browser.
 The server uses the actual packaged `@businessmode/sdk`. There is no simulated
 access mode in the deployed app.
 
+## Try the hosted demo
+
+Open [demo.businessmode.io](https://demo.businessmode.io/), select **Start demo**,
+then **Redeem code** (the demo code is prefilled). Add a task, complete it, reload,
+and reset. To see a rejection, edit the code before redeeming; **Restore demo code**
+returns to the working value. Technical details are collapsed under “For developers”.
+
 ## Architecture
 
 | Part | Responsibility |
@@ -62,7 +69,7 @@ Use a **dedicated demo Project**, separate from customer data:
 | `BUSINESSMODE_API_URL` | API URL ending in `/v1`; staging example is in `.env.example` |
 | `BUSINESSMODE_API_KEY` | Dedicated Project's machine API key; server secret |
 | `BUSINESSMODE_ENTITLEMENT_KEY` | Defaults to `todo:write` |
-| `DEMO_ORIGIN` | Exact public origin, initially `https://businessmode-demo.netlify.app` |
+| `DEMO_ORIGIN` | Exact public origin; hosted demo: `https://demo.businessmode.io` |
 | `DEMO_SESSION_SECRET` | Server secret: 32 random bytes encoded as 64 hex characters |
 | `DEMO_PUBLIC_ACCESS_CODE` | Optional public value for the “Use demo code” button |
 
@@ -152,13 +159,23 @@ assignment. Signed cookies have no central revocation list; a copied old cookie
 can be replayed until its server expiry. Reset revokes known BusinessMode grants,
 but is not a production authentication/sign-out system.
 
-**Abandoned guests require occasional cleanup in BusinessMode.** There is no
-background database or durable cleanup queue. Closing the browser, deleting a
-cookie, losing a redemption response, or concurrent redemptions from multiple
-tabs can leave assignment handles unavailable. Review the dedicated License's
-`todo_demo:` assignments and release abandoned ones through BusinessMode.
-Expired app sessions do not automatically free seats. Releases do not replenish
-code redemption allowances or remove historical redemptions/external users.
+**Hosted demo cleanup:** the existing BusinessMode staging database runs
+`businessmode-demo-staging-cleanup` every 10 minutes. It deletes abandoned demo
+guest access records older than two hours and restores this disposable demo's seat
+and redemption capacity. Guest sessions last one hour, leaving an extra hour of
+grace. The job uses fixed account/project/license IDs and the `todo_demo:` guest
+prefix; it preserves the project, license, code, key and normal audit history.
+The dedicated account is excluded from public metrics. Production is unaffected.
+
+The scheduler does not access browser task storage. Reset clears local tasks and
+releases known assignments immediately. Reset does not itself replenish historical
+redemption allowances; the hosted cleanup does that for this demo code only.
+
+This is operational configuration on the hosted demo, not something that cloning
+this repository installs. When hosting your own copy, arrange narrowly scoped
+cleanup for abandoned guests or release their assignments through BusinessMode.
+Closing a browser, deleting cookies or losing a redemption response can leave an
+assignment behind. Do not apply the disposable demo cleanup policy to real users.
 
 The stateless demo has no cross-instance application rate limiter. Keep finite
 seat/redemption allowances, review usage, and configure hosting-level traffic
@@ -168,7 +185,7 @@ sensitive product access.
 
 ## SDK release status
 
-The dependency points to the reviewed `@businessmode/sdk@0.1.0-preview.0` archive
+The dependency points to the reviewed `@businessmode/sdk@0.1.0-preview.1` archive
 in `vendor/`, so anyone can install this public repo without private workspace
 access. The package is not yet published to npm. See
 [third-party notices](THIRD_PARTY_NOTICES.md) for provenance and integrity.

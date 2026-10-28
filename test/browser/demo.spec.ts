@@ -40,3 +40,16 @@ test("guest can redeem, edit tasks and reset", async ({ page }, testInfo) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test("an incorrect visitor clock does not expire the server session", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2040-01-01T00:00:00Z"));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start guest session" }).click();
+  await expect(page.getByText("Guest session ready")).toBeVisible();
+  await page.getByRole("button", { name: "Use demo code" }).click();
+  await page.getByRole("button", { name: "Redeem code", exact: true }).click();
+  await expect(page.getByLabel("New task")).toBeEnabled();
+  await page.getByLabel("New task").fill("Works with a different client clock");
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "Works with a different client clock" })).toBeVisible();
+});

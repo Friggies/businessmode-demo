@@ -103,9 +103,10 @@ redemption, retry the same code in the same guest session. Redemption is
 domain-idempotent for that code/user pair. Resetting creates a fresh identity
 on the next start, since replaying an old redemption is not a new assignment.
 
-Guest expiry is stored as an absolute instant and checked on the server; browser
-time only controls the expiry notice. BusinessMode remains authoritative for
-License and Access Code time windows.
+Guest expiry is stored as an absolute instant and checked on the server. The UI
+reacts to server expiry responses instead of making access decisions from the
+browser's clock. BusinessMode remains authoritative for License and Access Code
+time windows.
 
 ## SDK release status
 

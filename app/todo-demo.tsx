@@ -36,17 +36,6 @@ export function TodoDemo() {
     return () => controller.abort();
   }, []);
 
-  // Cosmetic expiry only; the server checks the session and access independently.
-  useEffect(() => {
-    if (!state.expiresAt) return;
-    const expiresAt = state.expiresAt;
-    const timeout = setTimeout(() => {
-      setState(previous => ({ ...previous, session: false, hasAccess: false, expiresAt: null, tasks: sampleTasks }));
-      setMessage("Your guest session ended. Start a new session to try again.");
-    }, Math.max(0, new Date(expiresAt).getTime() - Date.now()));
-    return () => clearTimeout(timeout);
-  }, [state.expiresAt]);
-
   async function act(action: string, method: string, path: string, body?: unknown) {
     if (inFlight.current) return false;
     inFlight.current = true;

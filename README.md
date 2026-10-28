@@ -83,9 +83,11 @@ Import this repository into a Netlify project. `netlify.toml` defines
 `npm run build`, `.next`, and Node 24. Netlify installs its Next.js adapter
 without a pinned adapter dependency. Do not add a static SPA catch-all.
 
-Set the variables above in Netlify, scoped to **Builds and Functions** for the
-production deploy context. Keep the machine key and signing secret marked
-secret. The app can build without credentials, but real integration requires
+Set the variables above in Netlify for the **production** deploy context.
+On the Free plan, use the default **All scopes**. On plans supporting specific
+scopes, select **Builds and Functions** and use the secret-value flag when
+available. Both credentials remain private server environment variables;
+never expose them through client-prefixed names or public build output. The app can build without credentials, but real integration requires
 them at runtime. Redeploy after any environment-variable change. `.netlify/`
 is ignored so local linking metadata cannot be committed.
 

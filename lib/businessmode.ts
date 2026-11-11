@@ -1,4 +1,4 @@
-import { createMachineClient, getRequestId } from "@businessmode/sdk";
+import { createMachineClient, FRESH_ACCESS_HEADERS, getRequestId } from "@businessmode/sdk";
 import type { Config } from "./config";
 import type { Assignment } from "./session";
 
@@ -9,11 +9,12 @@ export class DemoError extends Error {
 export function businessmode(config: Config) {
   const client = createMachineClient({ baseUrl: config.apiUrl, apiKey: config.apiKey });
   return {
-    async hasAccess(sessionId: string) {
+    async hasAccess(sessionId: string, { fresh = false } = {}) {
       try {
         const { data, error, response } = await client.GET("/access", {
           params: { query: { externalUserId: externalUserId(sessionId), entitlementKey: config.entitlement } },
-          signal: AbortSignal.timeout(8000), cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+          ...(fresh ? { headers: FRESH_ACCESS_HEADERS } : {}),
         });
         if (error !== undefined || !data) throw serviceError(response);
         return data.hasAccess;

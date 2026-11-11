@@ -12,6 +12,7 @@ export default function Page() {
       <details className="integration" id="how-it-works">
         <summary>For developers: how it works</summary>
         <p>Next.js creates a guest session, then the BusinessMode SDK redeems the code and checks <code>todo:write</code> before each edit. Tasks stay in your browser; access records live in BusinessMode staging.</p>
+        <p>The <a href="https://www.npmjs.com/package/@businessmode/sdk">public npm SDK</a> caches approvals for up to one minute by default. Changes made elsewhere can take that long to appear; sensitive operations can request a fresh check.</p>
         <p>In your app, use your existing login and check access before changing protected data on the server. <a href="https://github.com/Friggies/businessmode-demo#readme" target="_blank" rel="noreferrer">Read the integration guide ↗</a></p>
       </details>
     </main>

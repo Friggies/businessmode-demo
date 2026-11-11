@@ -1,17 +1,12 @@
 # Third-party notices
 
-`vendor/businessmode-sdk-0.1.0-preview.1.tgz` contains the reviewed BusinessMode
-SDK preview under its included ISC license. The demo code is MIT-licensed.
+`@businessmode/sdk@0.1.0-preview.2` is installed from the public npm registry
+under its included ISC license. The demo source is MIT-licensed.
 
-This archive was packed from SDK source at commit
-`e7c4e0afe583e37dab7196846ccfc80922430a4e` (merged into staging in PR #42).
-It replaces the earlier preview.0 archive and adds credential-origin checks,
-redirect rejection and uncached authenticated requests. It is included while npm
-publication is pending; no private workspace dependency is needed.
+The exact version and SHA-512 integrity are pinned in `package-lock.json`:
 
-Archive SHA-256: `a54def2ea928ec46e203cc87e821727c5f0e4d5973ab09b03538801d6ce0ee08`.
-`package-lock.json` also records the SHA-512 integrity digest.
+`sha512-QSS8Fp0jfhFd7Mfq7eyygXxRlfP4pqnuiytxX8b1pnzUEN/tCdrPw7Va/ddV73azExcWFMjFTr4V0iNkUI6I3A==`
 
-After the matching version is published, replace this local archive dependency
-with the exact npm version, remove the archive and repeat the integration checks.
+The registry artifact was verified on 2026-11-11 against the prepared release
+archive. No SDK source or archive is vendored in this repository.
 Other dependencies retain their respective licenses in their distributed packages.

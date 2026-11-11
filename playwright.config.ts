@@ -10,7 +10,7 @@ export default defineConfig({
   ],
   webServer: [
     { command: "node --import tsx test/mock-api.ts", url: "http://127.0.0.1:4010/health", reuseExistingServer: false },
-    { command: "npm run start", url: "http://localhost:3000", reuseExistingServer: false, timeout: 60_000,
+    { command: "npm run start -- --hostname 127.0.0.1", url: "http://localhost:3000", reuseExistingServer: false, timeout: 60_000,
       env: { BUSINESSMODE_API_URL: "http://127.0.0.1:4010/v1", BUSINESSMODE_API_KEY: "local-test-key",
         BUSINESSMODE_ENTITLEMENT_KEY: "todo:write", DEMO_ORIGIN: "http://localhost:3000",
         DEMO_SESSION_SECRET: "11".repeat(32), DEMO_PUBLIC_ACCESS_CODE: "TRY_BUSINESSMODE" } },

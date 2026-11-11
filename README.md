@@ -2,7 +2,7 @@
 
 A public, database-free reference app: start a guest session, redeem a real
 BusinessMode access code, and edit a small to-do list stored in your browser.
-The server uses the actual packaged `@businessmode/sdk`. There is no simulated
+The server installs `@businessmode/sdk@0.1.0-preview.2` from the public npm registry. There is no simulated
 access mode in the deployed app.
 
 ## Try the hosted demo
@@ -17,11 +17,12 @@ returns to the working value. Technical details are collapsed under “For devel
 | Part | Responsibility |
 | --- | --- |
 | Browser | Renders the app and keeps up to 30 tasks in `localStorage` |
-| Next.js routes on Netlify | Issues signed guest cookies; calls BusinessMode with a private machine key |
+| Next.js server routes | Issues signed guest cookies; calls BusinessMode with a private machine key |
 | Existing BusinessMode API | Redeems codes and evaluates entitlements, seats and license windows |
 
-No SQLite, Supabase project, auth provider, persistent disk or separately
-managed server is required. Netlify runs the small Next.js server routes.
+No separate application database, auth provider or persistent disk is required.
+The hosted demo runs on Coolify against the BusinessMode staging API. You can
+run the same Next.js app locally or on another Node.js host.
 
 Before each task change the UI calls `/api/demo/authorize`, which checks
 `todo:write` through BusinessMode. It then updates its own local list. **Local
@@ -84,7 +85,15 @@ existing guest sessions and loses their cookie-held cleanup handles. Never
 prefix either secret with `NEXT_PUBLIC_`, commit `.env.local`, or reuse a
 production customer key. HTTPS is required outside localhost.
 
-## Deploy on Netlify
+## Deploy
+
+For a Node.js host such as Coolify, use Node 24 or 26, `npm ci`, `npm run build`,
+and `npm start -- --hostname 0.0.0.0 --port 3000`. Set the server variables above
+and route the public HTTPS domain to port 3000. Restart/redeploy after changing
+runtime configuration. The hosted demo deploys this public repository
+independently from the BusinessMode monorepo.
+
+### Optional Netlify deployment
 
 Import this repository into a Netlify project. `netlify.toml` defines
 `npm run build`, `.next`, and Node 24. Netlify installs its Next.js adapter
@@ -129,7 +138,6 @@ if (redemption.error !== undefined) throw new Error("Redemption failed");
 
 const access = await businessmode.GET("/access", {
   params: { query: { externalUserId, entitlementKey: "todo:write" } },
-  cache: "no-store",
 });
 if (access.error !== undefined || !access.data?.hasAccess) {
   throw new Error("Access denied");
@@ -183,14 +191,31 @@ limits as appropriate before broad promotion. BusinessMode API errors and rate
 limits are surfaced to the visitor. Do not reuse this guest setup for paid or
 sensitive product access.
 
-## SDK release status
+## SDK release and default cache
 
-The dependency points to the reviewed `@businessmode/sdk@0.1.0-preview.1` archive
-in `vendor/`, so anyone can install this public repo without private workspace
-access. The package is not yet published to npm. See
-[third-party notices](THIRD_PARTY_NOTICES.md) for provenance and integrity.
-Once that exact version is public, install it from npm, commit the lockfile,
-and remove the archive. Initial support is server-side ESM on Node 24/26.
+The dependency is pinned to the public `@businessmode/sdk@0.1.0-preview.2` npm
+release. `npm ci` verifies the registry archive against `package-lock.json`;
+there is no vendored SDK or private workspace dependency. See
+[third-party notices](THIRD_PARTY_NOTICES.md) for its license and integrity.
+Initial support is server-side ESM on Node 24/26.
+
+`lib/runtime.ts` reuses one machine client per server process. The SDK caches
+approvals for at most 60 seconds and denials for at most five seconds, shortened
+by known expiry. Repeated matching checks in that window do not call the API.
+Redemption and release through the same client invalidate its cached decisions.
+Changes from another server, the dashboard or cleanup can take up to a minute
+to appear. Guest session expiry is still checked on every request.
+
+For an operation requiring fresh access, pass `headers: FRESH_ACCESS_HEADERS`
+(imported from `@businessmode/sdk`) to `client.GET("/access", ...)`. The demo's
+server wrapper also supports `hasAccess(sessionId, { fresh: true })`.
+`accessCache: false` disables the decision cache for a client. HTTP responses
+remain `no-store`; never add browser or CDN caching to authenticated decisions.
+Errors are not cached, and expired approvals are not reused during an outage.
+
+For an SDK update, run `npm install --save-exact @businessmode/sdk@<version>`,
+review the release notes, run the checks below and commit both manifests before
+deploying. Publishing a new SDK does not silently update this demo.
 
 ## Verify
 
@@ -204,7 +229,8 @@ npm run test:e2e
 
 Integration tests use the installed SDK against a local HTTP test server. They
 cover cross-instance sessions, signature tampering, exact codes, access denial,
-revocation, upstream failures, expiry, reset retries and browser-storage parsing.
+revocation, default cache expiry/fresh bypass, mutation invalidation, upstream
+failures, expiry, reset retries and browser-storage parsing.
 Playwright tests run the production Next.js build on desktop and mobile against
 a separate test API; this test service is never used in production.
 

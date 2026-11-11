@@ -9,7 +9,10 @@ createServer(async (request, response) => {
   if (url.pathname === "/health") { response.end("{}"); return; }
   if (request.headers.authorization !== "Bearer local-test-key") { response.writeHead(401); response.end("{}"); return; }
   if (url.pathname === "/v1/access") {
-    response.end(JSON.stringify({ hasAccess: assignments.has(url.searchParams.get("externalUserId")!) })); return;
+    const hasAccess = assignments.has(url.searchParams.get("externalUserId")!);
+    const checkedAt = new Date();
+    response.end(JSON.stringify({ hasAccess, checkedAt: checkedAt.toISOString(),
+      cacheUntil: new Date(checkedAt.getTime() + (hasAccess ? 60_000 : 5_000)).toISOString() })); return;
   }
   if (url.pathname === "/v1/access-codes/redeem" && request.method === "POST") {
     const chunks = [];

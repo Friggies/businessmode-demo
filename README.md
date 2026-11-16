@@ -2,7 +2,7 @@
 
 A public, database-free reference app: start a guest session, redeem a real
 BusinessMode access code, and edit a small to-do list stored in your browser.
-The server installs `@businessmode/sdk@0.1.0-preview.2` from the public npm registry. There is no simulated
+The server installs `@businessmode/sdk@0.1.0-preview.3` from the public npm registry. There is no simulated
 access mode in the deployed app.
 
 ## Try the hosted demo
@@ -193,11 +193,18 @@ sensitive product access.
 
 ## SDK release and default cache
 
-The dependency is pinned to the public `@businessmode/sdk@0.1.0-preview.2` npm
+The dependency is pinned to the public `@businessmode/sdk@0.1.0-preview.3` npm
 release. `npm ci` verifies the registry archive against `package-lock.json`;
 there is no vendored SDK or private workspace dependency. See
 [third-party notices](THIRD_PARTY_NOTICES.md) for its license and integrity.
 Initial support is server-side ESM on Node 24/26.
+
+Preview.3 updates the Enterprise billing and Workspace resource-policy types.
+The demo uses the same runtime client and needs no new environment variables or
+provisioning changes. Workspace quota/rate failures (HTTP 429) and accounting
+outages (HTTP 503) are service errors, not entitlement denials; they never grant
+access or extend an expired cached approval. Recovery remains a visitor-initiated
+retry, with no automatic SDK retry.
 
 `lib/runtime.ts` reuses one machine client per server process. The SDK caches
 approvals for at most 60 seconds and denials for at most five seconds, shortened
